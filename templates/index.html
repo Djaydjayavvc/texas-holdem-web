@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Poker Assistant</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
+    label { display:block; margin:10px 0 4px; }
+    input { padding:8px; width: 120px; }
+    button { padding:10px 16px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Texas Hold’em Assistant (Web)</h1>
+  <form method="post" action="/">
+    <label>Opponents (1–8)</label>
+    <input type="number" name="opponents" min="1" max="8" value="2" required>
+
+    <label>Simulations (1000–20000)</label>
+    <input type="number" name="sims" min="1000" max="20000" value="3000" required>
+
+    <br>
+    <button type="submit">Start Hand</button>
+  </form>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+</body>
+</html>

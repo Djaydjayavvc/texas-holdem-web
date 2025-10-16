@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hand</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
+    .cards { font-size: 24px; }
+    .muted { color: #666; }
+    button { padding:10px 16px; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Stage: {{ stage|capitalize }}</h2>
+  <p class="cards">Your hand: <strong>{{ hole_str }}</strong></p>
+  {% if board_str %}
+    <p class="cards">Board: <strong>{{ board_str }}</strong></p>
+  {% endif %}
+
+  {% if preflop %}
+    <p>Preflop score: <strong>{{ preflop.score }}</strong> — Recommendation: <strong>{{ preflop.rec }}</strong> <span class="muted">({{ preflop.reason }})</span></p>
+  {% endif %}
+
+  {% if equity %}
+    <p><strong>{{ equity.line }}</strong></p>
+  {% endif %}
+
+  {% if hint %}
+    <p class="muted">{{ hint }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('progress') }}">
+    <button type="submit" name="action" value="continue">Continue</button>
+    <button type="submit" name="action" value="fold">Fold</button>
+    <a href="{{ url_for('reset') }}" class="muted">Reset</a>
+  </form>
+</body>
+</html>
