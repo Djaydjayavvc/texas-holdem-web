@@ -1,0 +1,75 @@
+/* static/css/styles.css */
+:root{
+  --bg1:#0d1117;
+  --bg2:#161b22;
+  --accent:#10b981;   /* emerald */
+  --accent2:#22d3ee;  /* cyan */
+  --text:#e6edf3;
+  --muted:#9aa4b2;
+  --card:#0b1320aa;
+  --border:#233047;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  line-height: 1.45;
+
+  /* A) Gradient background */
+  background: radial-gradient(1200px 800px at 20% -10%, #1f2937 0%, transparent 60%),
+              radial-gradient(1200px 800px at 120% 0%, #0ea5e9 0%, transparent 55%),
+              linear-gradient(180deg, var(--bg1), var(--bg2));
+
+  /* B) If you prefer an image background instead, comment the 3 lines above and use:
+  background: url("../img/table-bg.jpg") center/cover fixed no-repeat, linear-gradient(180deg, var(--bg1), var(--bg2));
+  */
+}
+
+.container {
+  max-width: 780px;
+  margin: 48px auto;
+  padding: 24px;
+  background: rgba(13, 17, 23, 0.6);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+h1, h2 { margin: 0 0 16px; font-weight: 600; }
+p { margin: 8px 0 0; }
+
+label { display:block; margin: 14px 0 6px; color: var(--muted); }
+input[type="number"] {
+  appearance: textfield;
+  width: 140px; padding: 10px 12px; font-size: 16px;
+  border: 1px solid var(--border); border-radius: 10px; background: #0b1220; color: var(--text);
+}
+input[type="number"]:focus { outline: 2px solid var(--accent2); }
+
+.buttons { margin-top: 18px; display:flex; gap: 10px; }
+
+button, .btn {
+  cursor: pointer;
+  border: 0;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: #051016; font-weight: 600;
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.25);
+  transition: transform .06s ease, filter .2s ease;
+  text-decoration: none; display:inline-block;
+}
+button:hover, .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+.btn-secondary {
+  background: #0f172a; color: var(--text);
+  border: 1px solid var(--border); box-shadow: none;
+}
+
+.cards { font-size: 28px; letter-spacing: 0.5px; }
+.muted { color: var(--muted); }
+.notice { padding:10px 12px; border:1px dashed var(--border); border-radius:12px; color:var(--muted); margin-top:10px; }

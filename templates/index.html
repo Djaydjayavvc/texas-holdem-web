@@ -1,33 +1,31 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Poker Assistant</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
-    label { display:block; margin:10px 0 4px; }
-    input { padding:8px; width: 120px; }
-    button { padding:10px 16px; margin-top: 16px; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Texas Hold'em Assistant</title>
+
+  <!-- Fonts and CSS -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
-  <h1>Texas Hold’em Assistant (Web)</h1>
-  <form method="post" action="/">
-    <label>Opponents (1–8)</label>
-    <input type="number" name="opponents" min="1" max="8" value="2" required>
+  <div class="container">
+    <h1>♠ Texas Hold'em Poker Assistant ♥</h1>
+    <p>Welcome! This tool helps you simulate hands and estimate your odds.</p>
 
-    <label>Simulations (1000–20000)</label>
-    <input type="number" name="sims" min="1000" max="20000" value="3000" required>
+    <form action="{{ url_for('progress') }}" method="post">
+      <label for="opponents">Number of opponents (1–8):</label><br>
+      <input type="number" id="opponents" name="opponents" min="1" max="8" required><br><br>
 
-    <br>
-    <button type="submit">Start Hand</button>
-  </form>
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <ul>
-        {% for m in messages %}<li>{{ m }}</li>{% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+      <button type="submit">Start Game</button>
+    </form>
+
+    <footer>
+      <p class="muted">Created by Yahya — Flask + Python + Render 🌍</p>
+    </footer>
+  </div>
 </body>
 </html>
