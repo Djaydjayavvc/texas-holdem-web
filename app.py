@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-import random, itertools, sys
+from flask import Flask, render_template, request, redirect, url_for, flash
+import random, itertools
 from collections import Counter
 
 app = Flask(__name__)
-app.secret_key = "change-me-in-prod"  # required for session
+app.secret_key = "change-me-in-prod"
 
 # ---------- Card helpers ----------
 SUITS = ['♠', '♥', '♦', '♣']
@@ -161,6 +161,15 @@ def detect_draws(hole, board):
                 return "You have a gutshot straight draw (4 outs)"
     return None
 
+# ---------- Serialization helpers (no session needed) ----------
+def ser(lst):      # list[int] -> "int,int,int"
+    return ",".join(str(x) for x in lst)
+
+def deser(s):      # "int,int" -> list[int]
+    if not s:
+        return []
+    return [int(x) for x in s.split(",") if x != ""]
+
 # ---------- Web routes ----------
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -174,76 +183,97 @@ def index():
             flash("Please enter valid numbers.")
             return redirect(url_for("index"))
 
-        rng = random.Random()  # can add seed if you like
+        rng = random.Random()
         deck = make_deck()
         rng.shuffle(deck)
         hole = [deck.pop(), deck.pop()]
+        board = []
+
         score, rec, reason = preflop_score(hole)
 
-        session["state"] = {
-            "deck": deck, "hole": hole, "board": [],
-            "n_opp": n_opp, "sims": sims
-        }
-        return render_template("hand.html",
-                               stage="preflop",
-                               hole_str=cards_to_str(hole),
-                               board_str="",
-                               preflop={"score": f"{score:.1f}", "rec": rec, "reason": reason},
-                               equity=None, hint=None)
+        return render_template(
+            "hand.html",
+            stage="preflop",
+            hole_str=cards_to_str(hole),
+            board_str="",
+            preflop={"score": f"{score:.1f}", "rec": rec, "reason": reason},
+            equity=None,
+            hint=None,
+            # hidden form state
+            deck_ser=ser(deck),
+            hole_ser=ser(hole),
+            board_ser=ser(board),
+            n_opp=n_opp,
+            sims=sims
+        )
+
     return render_template("index.html")
 
 @app.route("/progress", methods=["POST"])
 def progress():
-    st = session.get("state")
-    if not st:
-        flash("Session expired. Start a new hand.")
+    # pull state from hidden fields
+    deck = deser(request.form.get("deck_ser", ""))
+    hole = deser(request.form.get("hole_ser", ""))
+    board = deser(request.form.get("board_ser", ""))
+    try:
+        n_opp = int(request.form.get("n_opp", "2"))
+        sims = int(request.form.get("sims", "3000"))
+    except ValueError:
         return redirect(url_for("index"))
 
     action = request.form.get("action", "continue")
     if action == "fold":
-        session.pop("state", None)
         return render_template("result.html", message="You folded. Hand ended.")
-
-    deck = st["deck"]; hole = st["hole"]; board = st["board"]
-    n_opp = st["n_opp"]; sims = st["sims"]
-    rng = random.Random()
 
     # Advance a street
     if len(board) == 0:
-        # flop (3 cards)
+        # flop
+        if len(deck) < 3:
+            return redirect(url_for("index"))
         board.extend([deck.pop(), deck.pop(), deck.pop()])
         stage = "flop"
     elif len(board) == 3:
+        if len(deck) < 1:
+            return redirect(url_for("index"))
         board.append(deck.pop())  # turn
         stage = "turn"
     elif len(board) == 4:
+        if len(deck) < 1:
+            return redirect(url_for("index"))
         board.append(deck.pop())  # river
         stage = "river"
     else:
-        # already river -> show final equity and end
+        # showdown
+        rng = random.Random()
         win, tie = estimate_equity(hole, board, n_opp, sims, rng)
-        session.pop("state", None)
-        return render_template("result.html",
-                               message=f"Final board: {cards_to_str(board)}. Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%).")
+        return render_template(
+            "result.html",
+            message=f"Final board: {cards_to_str(board)}. Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%)."
+        )
 
-    # Compute equity on current street
+    # Compute street equity
+    rng = random.Random()
     win, tie = estimate_equity(hole, board, n_opp, sims, rng)
     hint = detect_draws(hole, board)
 
-    st["deck"], st["board"] = deck, board
-    session["state"] = st
-
-    return render_template("hand.html",
-                           stage=stage,
-                           hole_str=cards_to_str(hole),
-                           board_str=cards_to_str(board),
-                           preflop=None,
-                           equity={"line": f"Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%)"},
-                           hint=hint)
+    return render_template(
+        "hand.html",
+        stage=stage,
+        hole_str=cards_to_str(hole),
+        board_str=cards_to_str(board),
+        preflop=None,
+        equity={"line": f"Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%)"},
+        hint=hint,
+        # updated hidden state for next click
+        deck_ser=ser(deck),
+        hole_ser=ser(hole),
+        board_ser=ser(board),
+        n_opp=n_opp,
+        sims=sims
+    )
 
 @app.route("/reset")
 def reset():
-    session.pop("state", None)
     return redirect(url_for("index"))
 
 if __name__ == "__main__":

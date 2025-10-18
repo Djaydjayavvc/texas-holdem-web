@@ -1,43 +1,53 @@
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-
-
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Hand</title>
+  <title>Texas Hold’em – {{ stage|capitalize }}</title>
+
+  <!-- Google Fonts + External CSS -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
-    .cards { font-size: 24px; }
-    .muted { color: #666; }
-    button { padding:10px 16px; margin-right: 8px; }
+    body { font-family: 'Inter', system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
+    .row { margin: 10px 0; }
+    .btn { padding:10px 16px; font-weight:600; cursor:pointer; }
+    .hint { color:#444; margin-top:10px; }
   </style>
 </head>
 <body>
-  <h2>Stage: {{ stage|capitalize }}</h2>
-  <p class="cards">Your hand: <strong>{{ hole_str }}</strong></p>
-  {% if board_str %}
-    <p class="cards">Board: <strong>{{ board_str }}</strong></p>
-  {% endif %}
+  <h1>{{ stage|capitalize }}</h1>
 
   {% if preflop %}
-    <p>Preflop score: <strong>{{ preflop.score }}</strong> — Recommendation: <strong>{{ preflop.rec }}</strong> <span class="muted">({{ preflop.reason }})</span></p>
+    <div class="row"><b>Preflop score:</b> {{ preflop.score }} ({{ preflop.rec }}) – {{ preflop.reason }}</div>
   {% endif %}
 
+  <div class="row"><b>Hole:</b> {{ hole_str }}</div>
+  <div class="row"><b>Board:</b> {{ board_str or '—' }}</div>
+
   {% if equity %}
-    <p><strong>{{ equity.line }}</strong></p>
+    <div class="row"><b>{{ equity.line }}</b></div>
   {% endif %}
 
   {% if hint %}
-    <p class="muted">{{ hint }}</p>
+    <div class="hint">{{ hint }}</div>
   {% endif %}
 
   <form method="post" action="{{ url_for('progress') }}">
-    <button type="submit" name="action" value="continue">Continue</button>
-    <button type="submit" name="action" value="fold">Fold</button>
-    <a href="{{ url_for('reset') }}" class="muted">Reset</a>
+    <!-- carry state forward -->
+    <input type="hidden" name="deck_ser" value="{{ deck_ser }}">
+    <input type="hidden" name="hole_ser" value="{{ hole_ser }}">
+    <input type="hidden" name="board_ser" value="{{ board_ser }}">
+    <input type="hidden" name="n_opp" value="{{ n_opp }}">
+    <input type="hidden" name="sims" value="{{ sims }}">
+
+    <button class="btn" type="submit" name="action" value="continue">
+      {{ 'Deal Flop' if stage=='preflop' else ('Deal Turn' if stage=='flop' else ('Deal River' if stage=='turn' else 'Showdown')) }}
+    </button>
+    <button class="btn" type="submit" name="action" value="fold">Fold</button>
   </form>
+
+  <p><a href="{{ url_for('reset') }}">Start over</a></p>
 </body>
 </html>
