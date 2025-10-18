@@ -28,7 +28,35 @@ def cards_to_str(cards):
 def make_deck():
     return list(range(52))
 
-# ---------- 5-card evaluator ----------
+# ---------- Text parsing ----------
+RANK_MAP = {**{str(i): i for i in range(2, 10)}, 't': 10, 'j': 11, 'q': 12, 'k': 13, 'a': 14}
+SUIT_MAP = {'s': 0, 'h': 1, 'd': 2, 'c': 3}
+
+def make_card(rank_val: int, suit_idx: int) -> int:
+    return suit_idx * 13 + (rank_val - 2)
+
+def parse_text_card(txt: str):
+    if not txt:
+        return None
+    t = txt.strip().lower()
+    if len(t) != 2:
+        return None
+    rch, sch = t[0], t[1]
+    if rch not in RANK_MAP or sch not in SUIT_MAP:
+        return None
+    return make_card(RANK_MAP[rch], SUIT_MAP[sch])
+
+def unique_int_cards(cards):
+    seen = set()
+    for c in cards:
+        if c is None:
+            continue
+        if c in seen:
+            return False
+        seen.add(c)
+    return True
+
+# ---------- Evaluator ----------
 def is_straight(ranks_desc):
     uniq = sorted(set(ranks_desc), reverse=True)
     if len(uniq) < 5:
@@ -121,11 +149,10 @@ def preflop_score(hole):
 def estimate_equity(hole, board, n_opponents, sims, rng):
     if n_opponents <= 0:
         return 100.0, 0.0
-    known = set(hole) | set(board)
+    known = set(hole) | set(b for b in board if b is not None)
     deck = [c for c in make_deck() if c not in known]
     wins = ties = 0
     need = 5 - len(board)
-
     for _ in range(sims):
         rng.shuffle(deck)
         opp_holes = [deck[2*j:2*j+2] for j in range(n_opponents)]
@@ -161,19 +188,18 @@ def detect_draws(hole, board):
                 return "You have a gutshot straight draw (4 outs)"
     return None
 
-# ---------- Serialization helpers (no session needed) ----------
-def ser(lst):      # list[int] -> "int,int,int"
+# ---------- Serialization ----------
+def ser(lst):
     return ",".join(str(x) for x in lst)
-
-def deser(s):      # "int,int" -> list[int]
-    if not s:
-        return []
+def deser(s):
+    if not s: return []
     return [int(x) for x in s.split(",") if x != ""]
 
-# ---------- Web routes ----------
+# ---------- Routes ----------
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
+        mode = request.form.get("mode", "random")
         try:
             n_opp = int(request.form.get("opponents", "2"))
             sims = int(request.form.get("sims", "3000"))
@@ -183,93 +209,151 @@ def index():
             flash("Please enter valid numbers.")
             return redirect(url_for("index"))
 
-        rng = random.Random()
-        deck = make_deck()
-        rng.shuffle(deck)
-        hole = [deck.pop(), deck.pop()]
-        board = []
+        if mode == "random":
+            rng = random.Random()
+            deck = make_deck()
+            rng.shuffle(deck)
+            hole = [deck.pop(), deck.pop()]
+            board = []
+            score, rec, reason = preflop_score(hole)
+            return render_template("hand.html",
+                stage="preflop",
+                hole_str=cards_to_str(hole),
+                board_str="",
+                preflop={"score": f"{score:.1f}", "rec": rec, "reason": reason},
+                equity=None,
+                hint=None,
+                deck_ser=ser(deck),
+                hole_ser=ser(hole),
+                board_ser=ser(board),
+                n_opp=n_opp,
+                sims=sims,
+                mode="random"
+            )
 
-        score, rec, reason = preflop_score(hole)
-
-        return render_template(
-            "hand.html",
-            stage="preflop",
-            hole_str=cards_to_str(hole),
-            board_str="",
-            preflop={"score": f"{score:.1f}", "rec": rec, "reason": reason},
-            equity=None,
-            hint=None,
-            # hidden form state
-            deck_ser=ser(deck),
-            hole_ser=ser(hole),
-            board_ser=ser(board),
-            n_opp=n_opp,
-            sims=sims
-        )
+        else:
+            # Manual: start with just your hole cards (step-by-step later)
+            h1 = parse_text_card(request.form.get("hero1", ""))
+            h2 = parse_text_card(request.form.get("hero2", ""))
+            if not h1 or not h2 or h1 == h2:
+                flash("Enter two valid, different hole cards (e.g., Kh and Th).")
+                return redirect(url_for("index"))
+            hole = [h1, h2]
+            board = []
+            score, rec, reason = preflop_score(hole)
+            return render_template("hand.html",
+                stage="preflop",
+                hole_str=cards_to_str(hole),
+                board_str="",
+                preflop={"score": f"{score:.1f}", "rec": rec, "reason": reason},
+                equity=None,
+                hint=None,
+                deck_ser="",
+                hole_ser=ser(hole),
+                board_ser=ser(board),
+                n_opp=n_opp,
+                sims=sims,
+                mode="manual"
+            )
 
     return render_template("index.html")
 
 @app.route("/progress", methods=["POST"])
 def progress():
-    # pull state from hidden fields
-    deck = deser(request.form.get("deck_ser", ""))
+    mode = request.form.get("mode", "random")
     hole = deser(request.form.get("hole_ser", ""))
     board = deser(request.form.get("board_ser", ""))
-    try:
-        n_opp = int(request.form.get("n_opp", "2"))
-        sims = int(request.form.get("sims", "3000"))
-    except ValueError:
-        return redirect(url_for("index"))
-
+    n_opp = int(request.form.get("n_opp", "2"))
+    sims = int(request.form.get("sims", "3000"))
     action = request.form.get("action", "continue")
+
     if action == "fold":
         return render_template("result.html", message="You folded. Hand ended.")
 
-    # Advance a street
-    if len(board) == 0:
-        # flop
-        if len(deck) < 3:
-            return redirect(url_for("index"))
-        board.extend([deck.pop(), deck.pop(), deck.pop()])
-        stage = "flop"
-    elif len(board) == 3:
-        if len(deck) < 1:
-            return redirect(url_for("index"))
-        board.append(deck.pop())  # turn
-        stage = "turn"
-    elif len(board) == 4:
-        if len(deck) < 1:
-            return redirect(url_for("index"))
-        board.append(deck.pop())  # river
-        stage = "river"
-    else:
-        # showdown
+    if mode == "random":
+        deck = deser(request.form.get("deck_ser", ""))
+        if len(board) == 0:
+            board.extend([deck.pop(), deck.pop(), deck.pop()]); stage = "flop"
+        elif len(board) == 3:
+            board.append(deck.pop()); stage = "turn"
+        elif len(board) == 4:
+            board.append(deck.pop()); stage = "river"
+        else:
+            rng = random.Random()
+            win, tie = estimate_equity(hole, board, n_opp, sims, rng)
+            return render_template("result.html",
+                message=f"Final board: {cards_to_str(board)}. Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%).")
+
         rng = random.Random()
         win, tie = estimate_equity(hole, board, n_opp, sims, rng)
-        return render_template(
-            "result.html",
-            message=f"Final board: {cards_to_str(board)}. Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%)."
+        hint = detect_draws(hole, board)
+        return render_template("hand.html",
+            stage=stage,
+            hole_str=cards_to_str(hole),
+            board_str=cards_to_str(board),
+            preflop=None,
+            equity={"line": f"Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%)"},
+            hint=hint,
+            deck_ser=ser(deck),
+            hole_ser=ser(hole),
+            board_ser=ser(board),
+            n_opp=n_opp,
+            sims=sims,
+            mode="random"
         )
 
-    # Compute street equity
+    # ---- MANUAL MODE (step-by-step) ----
+    stage = "preflop" if len(board) == 0 else ("flop" if len(board) == 3 else ("turn" if len(board) == 4 else "river"))
+
+    if stage == "preflop":
+        f1 = parse_text_card(request.form.get("add_flop1", ""))
+        f2 = parse_text_card(request.form.get("add_flop2", ""))
+        f3 = parse_text_card(request.form.get("add_flop3", ""))
+        if not f1 or not f2 or not f3:
+            flash("Enter three valid flop cards (e.g., 7c 8h 9d).")
+            return redirect(url_for("index"))
+        new_cards = [f1, f2, f3]
+    elif stage == "flop":
+        t = parse_text_card(request.form.get("add_turn", ""))
+        if not t:
+            flash("Enter a valid turn card (e.g., Qs).")
+            return redirect(url_for("index"))
+        new_cards = [t]
+    elif stage == "turn":
+        rv = parse_text_card(request.form.get("add_river", ""))
+        if not rv:
+            flash("Enter a valid river card (e.g., 2d).")
+            return redirect(url_for("index"))
+        new_cards = [rv]
+    else:
+        rng = random.Random()
+        win, tie = estimate_equity(hole, board, n_opp, sims, rng)
+        return render_template("result.html",
+            message=f"Final board: {cards_to_str(board)}. Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%).")
+
+    if not unique_int_cards(list(hole) + list(board) + new_cards):
+        flash("Duplicate card detected in manual entry.")
+        return redirect(url_for("index"))
+
+    board.extend(new_cards)
+    stage = "flop" if len(board) == 3 else ("turn" if len(board) == 4 else "river")
     rng = random.Random()
     win, tie = estimate_equity(hole, board, n_opp, sims, rng)
     hint = detect_draws(hole, board)
 
-    return render_template(
-        "hand.html",
+    return render_template("hand.html",
         stage=stage,
         hole_str=cards_to_str(hole),
         board_str=cards_to_str(board),
         preflop=None,
         equity={"line": f"Equity vs {n_opp}: {win+tie:.1f}% (win {win:.1f}%, tie {tie:.1f}%)"},
         hint=hint,
-        # updated hidden state for next click
-        deck_ser=ser(deck),
+        deck_ser="",
         hole_ser=ser(hole),
         board_ser=ser(board),
         n_opp=n_opp,
-        sims=sims
+        sims=sims,
+        mode="manual"
     )
 
 @app.route("/reset")

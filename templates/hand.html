@@ -10,10 +10,12 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
+    body { font-family: 'Inter', system-ui, sans-serif; max-width: 820px; margin: 40px auto; }
     .row { margin: 10px 0; }
     .btn { padding:10px 16px; font-weight:600; cursor:pointer; }
     .hint { color:#444; margin-top:10px; }
+    .grid { display:grid; grid-template-columns: repeat(2, auto); gap: 8px 16px; align-items:center; }
+    input { padding:8px; width: 100px; }
   </style>
 </head>
 <body>
@@ -41,9 +43,37 @@
     <input type="hidden" name="board_ser" value="{{ board_ser }}">
     <input type="hidden" name="n_opp" value="{{ n_opp }}">
     <input type="hidden" name="sims" value="{{ sims }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
+
+    {% if mode == 'manual' %}
+      {% if stage == 'preflop' %}
+        <div class="grid">
+          <label>Add flop:</label>
+          <div>
+            <input name="add_flop1" placeholder="7c">
+            <input name="add_flop2" placeholder="8h">
+            <input name="add_flop3" placeholder="9d">
+          </div>
+        </div>
+      {% elif stage == 'flop' %}
+        <div class="grid">
+          <label>Add turn:</label>
+          <input name="add_turn" placeholder="Qs">
+        </div>
+      {% elif stage == 'turn' %}
+        <div class="grid">
+          <label>Add river:</label>
+          <input name="add_river" placeholder="2d">
+        </div>
+      {% endif %}
+    {% endif %}
 
     <button class="btn" type="submit" name="action" value="continue">
-      {{ 'Deal Flop' if stage=='preflop' else ('Deal Turn' if stage=='flop' else ('Deal River' if stage=='turn' else 'Showdown')) }}
+      {% if mode == 'random' %}
+        {{ 'Deal Flop' if stage=='preflop' else ('Deal Turn' if stage=='flop' else ('Deal River' if stage=='turn' else 'Showdown')) }}
+      {% else %}
+        {{ 'Submit Flop' if stage=='preflop' else ('Submit Turn' if stage=='flop' else ('Submit River' if stage=='turn' else 'Showdown')) }}
+      {% endif %}
     </button>
     <button class="btn" type="submit" name="action" value="fold">Fold</button>
   </form>

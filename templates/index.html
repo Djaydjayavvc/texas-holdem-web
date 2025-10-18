@@ -10,15 +10,69 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
-    label { display:block; margin-top: 12px; font-weight:600; }
-    input { padding:8px; width: 140px; }
-    button { margin-top:16px; padding:10px 16px; font-weight:600; cursor:pointer; }
-    .flash { background:#ffe8e8; border:1px solid #f4bcbc; padding:8px 10px; border-radius:8px; margin-bottom:10px; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      max-width: 820px;
+      margin: 40px auto;
+      background: radial-gradient(circle at top, #0b0b0f, #121212 80%);
+      color: #f1f1f1;
+    }
+    h1 {
+      font-size: 2.3rem;
+      text-align: center;
+      color: #f1f1f1;
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.5px;
+    }
+    p.subtitle {
+      text-align: center;
+      color: #b5b5b5;
+      font-size: 1.1rem;
+      margin-top: -5px;
+    }
+    fieldset {
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 18px 0;
+      background-color: #1a1a1a;
+    }
+    legend {
+      font-weight: 700;
+      padding: 0 8px;
+      color: #f8b400;
+    }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    input { padding: 8px; border-radius: 6px; border: 1px solid #333; background: #222; color: #eee; }
+    input:focus { outline: 1px solid #f8b400; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .note { color: #9aa0a6; font-size: 0.95rem; }
+    button {
+      margin-top: 16px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(90deg, #00bcd4, #00e6b0);
+      color: #111;
+      transition: 0.2s;
+    }
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    .flash {
+      background: #3b1f1f;
+      border: 1px solid #6b2d2d;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      color: #ffbaba;
+    }
   </style>
 </head>
+
 <body>
-  <h1>Start a Hand</h1>
+  <h1>Welcome to Texas Hold'em <span style="color:#f8b400;">My Pisco</span></h1>
+  <p class="subtitle">Start your own Poker Universe ♠ ♥ ♦ ♣</p>
 
   {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -28,15 +82,50 @@
     {% endif %}
   {% endwith %}
 
-  <!-- Form to start new hand -->
   <form method="post" action="{{ url_for('index') }}">
-    <label>Opponents (1–8)</label>
-    <input type="number" name="opponents" min="1" max="8" value="2" required>
+    <fieldset>
+      <legend>Settings</legend>
+      <div class="row">
+        <label>Opponents (1–8)
+          <input type="number" name="opponents" min="1" max="8" value="2" required>
+        </label>
+        <label>Simulations (1000–20000)
+          <input type="number" name="sims" min="1000" max="20000" value="3000" required>
+        </label>
+      </div>
+    </fieldset>
 
-    <label>Simulations (1000–20000)</label>
-    <input type="number" name="sims" min="1000" max="20000" value="3000" required>
+    <fieldset>
+      <legend>Mode</legend>
+      <label><input type="radio" name="mode" value="random" checked> Random deal</label>
+      <label><input type="radio" name="mode" value="manual"> Manual input (enter your real cards)</label>
+    </fieldset>
+
+    <!-- Manual hole cards -->
+    <fieldset id="manualFields">
+      <legend>Manual hole cards</legend>
+      <p class="note">
+        Use ranks 2–9, T, J, Q, K, A and suits c, d, h, s. Examples: <b>Kh</b>, <b>Td</b>.
+      </p>
+      <div class="row">
+        <input name="hero1" placeholder="Kh">
+        <input name="hero2" placeholder="Th">
+      </div>
+    </fieldset>
 
     <button type="submit">Deal Hand</button>
   </form>
+
+  <script>
+    // Gray out manual fields unless Manual mode is selected
+    const radios = document.querySelectorAll('input[name="mode"]');
+    const box = document.getElementById('manualFields');
+    function update() {
+      const manual = [...radios].find(r => r.checked)?.value === 'manual';
+      box.style.opacity = manual ? '1' : '0.5';
+    }
+    radios.forEach(r => r.addEventListener('change', update));
+    update();
+  </script>
 </body>
 </html>
